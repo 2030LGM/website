@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WISDOM GAINS — Video Editing Reel</title>
+<title>WSDOM GAINS — Video Editing Reel</title>
 
 <!--
   ============================================================
@@ -546,15 +546,56 @@
     font-size:12px; color:var(--text-dim); letter-spacing:0.5px;
   }
 
-  /* ---------------- floating whatsapp ---------------- */
+  /* ---------------- floating contact widget ---------------- */
 
-  .float-wa{
-    position:fixed; right:24px; bottom:24px; width:56px; height:56px; border-radius:50%;
-    background:var(--neon-green); display:flex; align-items:center; justify-content:center;
-    z-index:200; box-shadow:0 0 26px rgba(77,255,106,0.55); transition:transform 0.2s ease;
+  .float-contact{
+    position:fixed; right:24px; bottom:24px; z-index:200;
+    display:flex; flex-direction:column; align-items:center; gap:14px;
   }
-  .float-wa:hover{ transform:scale(1.08); }
-  .float-wa svg{ width:26px; height:26px; }
+
+  .float-options{
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+
+  .float-option{
+    width:48px; height:48px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transform:translateY(10px) scale(0.6);
+    pointer-events:none;
+    transition:opacity 0.2s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .float-option svg{ width:22px; height:22px; }
+
+  .float-option.wa{ background:var(--neon-green); color:#050509; box-shadow:0 0 18px rgba(77,255,106,0.5); }
+  .float-option.ig{ background:var(--neon-pink); color:#050509; box-shadow:0 0 18px rgba(255,47,208,0.5); }
+
+  .float-option:hover{ transform:translateY(0) scale(1.1); }
+
+  .float-contact.open .float-option{
+    opacity:1; transform:translateY(0) scale(1); pointer-events:auto;
+  }
+  .float-contact.open .float-option.ig{ transition-delay:0.03s; }
+  .float-contact.open .float-option.wa{ transition-delay:0.08s; }
+
+  .float-main{
+    width:56px; height:56px; border-radius:50%; border:0; cursor:pointer;
+    background:var(--neon-green); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 26px rgba(77,255,106,0.55); transition:transform 0.2s ease, background 0.2s ease;
+    position:relative;
+  }
+  .float-main:hover{ transform:scale(1.08); }
+  .float-main svg{ width:26px; height:26px; position:absolute; transition:opacity 0.2s ease, transform 0.25s ease; }
+
+  .float-main .icon-chat{ opacity:1; transform:rotate(0deg) scale(1); }
+  .float-main .icon-close{ opacity:0; transform:rotate(-45deg) scale(0.6); }
+
+  .float-contact.open .float-main .icon-chat{ opacity:0; transform:rotate(45deg) scale(0.6); }
+  .float-contact.open .float-main .icon-close{ opacity:1; transform:rotate(0deg) scale(1); }
+
+  @media (prefers-reduced-motion: reduce){
+    .float-option, .float-main svg{ transition:opacity 0.15s linear; }
+  }
 
   /* ---------------- mobile nav ---------------- */
 
@@ -571,12 +612,6 @@
     .hero{ min-height:560px; }
   }
 </style>
-
-<!-- Vercel Web Analytics -->
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 
@@ -584,7 +619,7 @@
   <div class="nav-row">
     <a href="#top" class="brand">
       <span class="logo-box" id="logoBox"><span class="logo-fallback">WG</span></span>
-      <span class="brand-name">WISDOM <span class="g">GAINS</span></span>
+      <span class="brand-name">WSDOM <span class="g">GAINS</span></span>
     </a>
 
     <nav class="links" id="navLinks">
@@ -687,7 +722,7 @@
     </div>
 
     <div class="footer-bottom">
-      <span>© <span id="year"></span> WISDOM GAINS. All footage property of respective owners.</span>
+      <span>© <span id="year"></span> WSDOM GAINS. All footage property of respective owners.</span>
       <span class="mono">Built frame by frame.</span>
     </div>
   </div>
@@ -698,9 +733,20 @@
   <div class="head" id="scrollHead"></div>
 </div>
 
-<a class="float-wa" id="floatWa" target="_blank" rel="noopener" aria-label="Message on WhatsApp">
-  <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.87.5 3.62 1.38 5.13L2 22l4.99-1.31A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="#050509"/><path d="M8.5 8.7c.15-.5.6-.8 1-.8h.7c.3 0 .55.2.65.5l.6 1.7c.1.3 0 .6-.2.8l-.6.6c.4.9 1.2 1.7 2.1 2.1l.6-.6c.2-.2.5-.3.8-.2l1.7.6c.3.1.5.35.5.65v.7c0 .4-.3.85-.8 1-1.9.55-4.9-.6-6.6-2.3-1.7-1.7-2.85-4.7-2.3-6.6z" fill="#050509"/></svg>
-</a>
+<div class="float-contact" id="floatContact">
+  <div class="float-options" id="floatOptions">
+    <a class="float-option ig" id="floatIg" target="_blank" rel="noopener" aria-label="Message on Instagram">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor"/></svg>
+    </a>
+    <a class="float-option wa" id="floatWa" target="_blank" rel="noopener" aria-label="Message on WhatsApp">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.87.5 3.62 1.38 5.13L2 22l4.99-1.31A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="currentColor"/><path d="M8.5 8.7c.15-.5.6-.8 1-.8h.7c.3 0 .55.2.65.5l.6 1.7c.1.3 0 .6-.2.8l-.6.6c.4.9 1.2 1.7 2.1 2.1l.6-.6c.2-.2.5-.3.8-.2l1.7.6c.3.1.5.35.5.65v.7c0 .4-.3.85-.8 1-1.9.55-4.9-.6-6.6-2.3-1.7-1.7-2.85-4.7-2.3-6.6z" fill="#050509"/></svg>
+    </a>
+  </div>
+  <button class="float-main" id="floatMain" aria-label="Contact options" aria-expanded="false">
+    <svg class="icon-chat" viewBox="0 0 24 24" fill="none"><path d="M21 12c0 4.42-4.03 8-9 8-1.13 0-2.21-.18-3.2-.52L3 20l1.3-3.9A7.6 7.6 0 013 12c0-4.42 4.03-8 9-8s9 3.58 9 8z" fill="#050509"/></svg>
+    <svg class="icon-close" viewBox="0 0 24 24" fill="none"><path d="M5 5L19 19M19 5L5 19" stroke="#050509" stroke-width="2.2" stroke-linecap="round"/></svg>
+  </button>
+</div>
 
 <script>
 /* ============================================================
@@ -712,9 +758,9 @@ const LOGO_SRC = "logo.jpg"; // e.g. "logo.png" — place the file next to this 
    2. YOUR LINKS
    ============================================================ */
 const SOCIAL = {
-  whatsapp: "https://api.whatsapp.com/send/?phone=919727900877&text&type=phone_number&app_absent=0",
-  instagram: "https://www.instagram.com/abhigzz.fx/",
-  twitter: "https://x.com/abhiii2103"
+  whatsapp: "https://wa.me/10000000000",
+  instagram: "https://instagram.com/yourhandle",
+  twitter: "https://x.com/yourhandle"
 };
 
 /* ============================================================
@@ -736,7 +782,7 @@ const VIDEOS = [
 if (LOGO_SRC) {
   const img = document.createElement("img");
   img.src = LOGO_SRC;
-  img.alt = "WISDOM GAINS logo";
+  img.alt = "WSDOM GAINS logo";
   img.onerror = () => { /* keep WG fallback if file missing */ };
   img.onload = () => {
     document.getElementById("logoBox").innerHTML = "";
@@ -748,7 +794,32 @@ document.getElementById("waLink").href = SOCIAL.whatsapp;
 document.getElementById("igLink").href = SOCIAL.instagram;
 document.getElementById("twLink").href = SOCIAL.twitter;
 document.getElementById("floatWa").href = SOCIAL.whatsapp;
+document.getElementById("floatIg").href = SOCIAL.instagram;
 document.getElementById("year").textContent = new Date().getFullYear();
+
+/* Floating contact widget: tap the main button to reveal WhatsApp / Instagram */
+(function () {
+  const wrap = document.getElementById("floatContact");
+  const mainBtn = document.getElementById("floatMain");
+
+  function setOpen(open) {
+    wrap.classList.toggle("open", open);
+    mainBtn.setAttribute("aria-expanded", String(open));
+  }
+
+  mainBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setOpen(!wrap.classList.contains("open"));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) setOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setOpen(false);
+  });
+})();
 
 document.getElementById("navToggle").addEventListener("click", () => {
   document.getElementById("navLinks").classList.toggle("open");
@@ -903,25 +974,108 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
     return !body.some(s => s.x === x && s.y === y);
   }
 
+  // Count reachable open cells from (startX, startY), avoiding `blocked` cells.
+  // Used to check a move doesn't wall the snake into a small dead-end pocket.
+  function floodFillCount(startX, startY, blocked) {
+    const seen = new Set([`${startX},${startY}`]);
+    const stack = [{ x: startX, y: startY }];
+    let count = 0;
+    while (stack.length) {
+      const { x, y } = stack.pop();
+      count++;
+      const neighbors = [
+        { x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }
+      ];
+      for (const n of neighbors) {
+        if (n.x < 0 || n.y < 0 || n.x >= cols || n.y >= rows) continue;
+        const k = `${n.x},${n.y}`;
+        if (seen.has(k) || blocked.has(k)) continue;
+        seen.add(k);
+        stack.push(n);
+      }
+    }
+    return count;
+  }
+
+  // BFS shortest path from head to goal, avoiding `blocked` cells.
+  // Returns the first-step direction to take, or null if no path exists.
+  function bfsNextStep(head, goal, blocked) {
+    const startKey = `${head.x},${head.y}`;
+    if (blocked.has(startKey)) return null;
+    const queue = [head];
+    let qi = 0;
+    const cameFrom = new Map();
+    const visited = new Set([startKey]);
+
+    while (qi < queue.length) {
+      const cur = queue[qi++];
+      if (cur.x === goal.x && cur.y === goal.y) {
+        let key = `${cur.x},${cur.y}`;
+        let parent = cameFrom.get(key);
+        if (!parent) return null; // goal is the head itself, no move needed
+        while (parent !== startKey) {
+          key = parent;
+          parent = cameFrom.get(key);
+        }
+        const [sx, sy] = key.split(",").map(Number);
+        return { x: sx - head.x, y: sy - head.y };
+      }
+      const neighbors = [
+        { x: cur.x + 1, y: cur.y }, { x: cur.x - 1, y: cur.y },
+        { x: cur.x, y: cur.y + 1 }, { x: cur.x, y: cur.y - 1 }
+      ];
+      for (const n of neighbors) {
+        if (n.x < 0 || n.y < 0 || n.x >= cols || n.y >= rows) continue;
+        const k = `${n.x},${n.y}`;
+        if (visited.has(k) || blocked.has(k)) continue;
+        visited.add(k);
+        cameFrom.set(k, `${cur.x},${cur.y}`);
+        queue.push(n);
+      }
+    }
+    return null;
+  }
+
   function chooseDirection() {
     const head = snake[0];
+    // tail cell will vacate this tick (unless we're about to grow), so it's not a real obstacle
+    const bodyNoTail = snake.slice(0, -1);
+    const blocked = new Set(bodyNoTail.map(s => `${s.x},${s.y}`));
+
     const options = [
       { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }
     ].filter(o => !(o.x === -dir.x && o.y === -dir.y));
 
-    let best = null, bestScore = -Infinity;
+    const minSpace = Math.min(snake.length + 4, cols * rows * 0.3);
+
+    // 1) Try the shortest path to the food, but only take it if it doesn't
+    //    wall the snake into a pocket too small to keep moving in.
+    const pathDir = bfsNextStep(head, food, blocked);
+    if (pathDir) {
+      const nx = head.x + pathDir.x, ny = head.y + pathDir.y;
+      if (safe(nx, ny, bodyNoTail)) {
+        const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
+        const space = floodFillCount(nx, ny, afterBlocked);
+        if (space >= minSpace) return pathDir;
+      }
+    }
+
+    // 2) No safe path to food right now — pick the safe move that keeps the
+    //    most open space available, so the snake survives and stays flexible.
+    let best = null, bestSpace = -1;
     for (const o of options) {
       const nx = head.x + o.x, ny = head.y + o.y;
-      if (!safe(nx, ny, snake.slice(0, -1))) continue;
-      const dist = -(Math.abs(nx - food.x) + Math.abs(ny - food.y));
-      const score = dist + (o.x === dir.x && o.y === dir.y ? 0.5 : 0);
-      if (score > bestScore) { bestScore = score; best = o; }
+      if (!safe(nx, ny, bodyNoTail)) continue;
+      const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
+      const space = floodFillCount(nx, ny, afterBlocked);
+      if (space > bestSpace) { bestSpace = space; best = o; }
     }
     if (best) return best;
 
+    // 3) Nothing strictly safe (tail-following as last resort).
     for (const o of options) {
       const nx = head.x + o.x, ny = head.y + o.y;
-      if (safe(nx, ny, snake.slice(0, -1))) return o;
+      if (safe(nx, ny, bodyNoTail)) return o;
     }
     return dir;
   }
