@@ -1045,13 +1045,11 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
     return results;
   }
 
-  function chooseDirection() {
+ function chooseDirection() {
     const head = snake[0];
     const bodyNoTail = snake.slice(0, -1);
     const blocked = new Set(bodyNoTail.map(s => `${s.x},${s.y}`));
 
-    // shuffle option order each time so ties (equal open space, etc.)
-    // don't always resolve the same way
     const options = [
       { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }
     ]
@@ -1060,9 +1058,9 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
 
     const minSpace = Math.min(snake.length + 4, cols * rows * 0.3);
 
-    // Small chance to ignore the food and just wander toward open space —
-    // reads as curiosity/hesitation rather than a robot beelining every time.
-    const wander = Math.random() < 0.12;
+    // Wandering is now rare and only a light nudge — the snake should
+    // read as "hunting the food" almost all the time.
+    const wander = Math.random() < 0.03;
 
     if (!wander) {
       const pathDirs = bfsNextStepOptions(head, food, blocked);
@@ -1075,6 +1073,37 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
         }
       }
     }
+
+    // No safe direct path (or a rare wander tick): still bias toward the
+    // food's direction, just weighted against getting boxed in. This keeps
+    // the snake visibly making progress toward food instead of drifting.
+    const scored = [];
+    for (const o of options) {
+      const nx = head.x + o.x, ny = head.y + o.y;
+      if (!safe(nx, ny, bodyNoTail)) continue;
+      const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
+      const space = floodFillCount(nx, ny, afterBlocked);
+      const distNow = Math.abs(head.x - food.x) + Math.abs(head.y - food.y);
+      const distNext = Math.abs(nx - food.x) + Math.abs(ny - food.y);
+      const towardFood = distNext < distNow ? 1 : 0;
+      // space keeps it alive, towardFood keeps it purposeful — space matters
+      // more only when it's genuinely tight, otherwise food direction wins
+      const spaceScore = Math.min(space, minSpace) / minSpace; // 0..1, caps out once "safe enough"
+      const score = spaceScore * 0.5 + towardFood * 1.5 + Math.random() * 0.15;
+      scored.push({ o, score });
+    }
+    if (scored.length) {
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored.filter(s => s.score >= scored[0].score - 0.2);
+      return top[Math.floor(Math.random() * top.length)].o;
+    }
+
+    for (const o of options) {
+      const nx = head.x + o.x, ny = head.y + o.y;
+      if (safe(nx, ny, bodyNoTail)) return o;
+    }
+    return dir;
+  }
 
     // pick from the safe moves with the most open space, but don't always
     // take the single best — sample among near-best ones for variety
