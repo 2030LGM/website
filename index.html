@@ -933,7 +933,7 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const CELL = 22;
-  let cols, rows, snake, dir, food, growUntil, stepMs, lastStep;
+  let cols, rows, snake, prevSnake, dir, food, growUntil, stepMs, lastStep;
 
   function resize() {
     const rect = hero.getBoundingClientRect();
@@ -952,6 +952,7 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
       { x: startX - 1, y: startY },
       { x: startX - 2, y: startY }
     ];
+    prevSnake = snake.map(s => ({ ...s }));
     dir = { x: 1, y: 0 };
     growUntil = snake.length + 10;
     placeFood();
@@ -974,8 +975,6 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
     return !body.some(s => s.x === x && s.y === y);
   }
 
-  // Count reachable open cells from (startX, startY), avoiding `blocked` cells.
-  // Used to check a move doesn't wall the snake into a small dead-end pocket.
   function floodFillCount(startX, startY, blocked) {
     const seen = new Set([`${startX},${startY}`]);
     const stack = [{ x: startX, y: startY }];
@@ -997,29 +996,23 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
     return count;
   }
 
-  // BFS shortest path from head to goal, avoiding `blocked` cells.
-  // Returns the first-step direction to take, or null if no path exists.
-  function bfsNextStep(head, goal, blocked) {
+  // BFS shortest path, but returns a small POOL of equally-short first-steps
+  // (not just one), so ties can be broken randomly instead of always the
+  // same way — this alone kills a lot of the "same route every time" feel.
+  function bfsNextStepOptions(head, goal, blocked) {
     const startKey = `${head.x},${head.y}`;
-    if (blocked.has(startKey)) return null;
+    if (blocked.has(startKey)) return [];
     const queue = [head];
     let qi = 0;
     const cameFrom = new Map();
-    const visited = new Set([startKey]);
+    const dist = new Map([[startKey, 0]]);
+    let goalDist = -1;
 
     while (qi < queue.length) {
       const cur = queue[qi++];
-      if (cur.x === goal.x && cur.y === goal.y) {
-        let key = `${cur.x},${cur.y}`;
-        let parent = cameFrom.get(key);
-        if (!parent) return null; // goal is the head itself, no move needed
-        while (parent !== startKey) {
-          key = parent;
-          parent = cameFrom.get(key);
-        }
-        const [sx, sy] = key.split(",").map(Number);
-        return { x: sx - head.x, y: sy - head.y };
-      }
+      const curKey = `${cur.x},${cur.y}`;
+      if (goalDist !== -1 && dist.get(curKey) >= goalDist) continue;
+      if (cur.x === goal.x && cur.y === goal.y) { goalDist = dist.get(curKey); continue; }
       const neighbors = [
         { x: cur.x + 1, y: cur.y }, { x: cur.x - 1, y: cur.y },
         { x: cur.x, y: cur.y + 1 }, { x: cur.x, y: cur.y - 1 }
@@ -1027,52 +1020,78 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
       for (const n of neighbors) {
         if (n.x < 0 || n.y < 0 || n.x >= cols || n.y >= rows) continue;
         const k = `${n.x},${n.y}`;
-        if (visited.has(k) || blocked.has(k)) continue;
-        visited.add(k);
-        cameFrom.set(k, `${cur.x},${cur.y}`);
+        if (dist.has(k) || blocked.has(k)) continue;
+        dist.set(k, dist.get(curKey) + 1);
+        cameFrom.set(k, curKey);
         queue.push(n);
       }
     }
-    return null;
+
+    const goalKey = `${goal.x},${goal.y}`;
+    if (!dist.has(goalKey)) return [];
+
+    // walk back from goal to find every first-step that lies on a
+    // shortest path (there can be several when the grid is open)
+    const results = [];
+    let key = goalKey;
+    let parent = cameFrom.get(key);
+    if (!parent) return [];
+    while (parent !== startKey) {
+      key = parent;
+      parent = cameFrom.get(key);
+    }
+    const [sx, sy] = key.split(",").map(Number);
+    results.push({ x: sx - head.x, y: sy - head.y });
+    return results;
   }
 
   function chooseDirection() {
     const head = snake[0];
-    // tail cell will vacate this tick (unless we're about to grow), so it's not a real obstacle
     const bodyNoTail = snake.slice(0, -1);
     const blocked = new Set(bodyNoTail.map(s => `${s.x},${s.y}`));
 
+    // shuffle option order each time so ties (equal open space, etc.)
+    // don't always resolve the same way
     const options = [
       { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }
-    ].filter(o => !(o.x === -dir.x && o.y === -dir.y));
+    ]
+      .filter(o => !(o.x === -dir.x && o.y === -dir.y))
+      .sort(() => Math.random() - 0.5);
 
     const minSpace = Math.min(snake.length + 4, cols * rows * 0.3);
 
-    // 1) Try the shortest path to the food, but only take it if it doesn't
-    //    wall the snake into a pocket too small to keep moving in.
-    const pathDir = bfsNextStep(head, food, blocked);
-    if (pathDir) {
-      const nx = head.x + pathDir.x, ny = head.y + pathDir.y;
-      if (safe(nx, ny, bodyNoTail)) {
-        const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
-        const space = floodFillCount(nx, ny, afterBlocked);
-        if (space >= minSpace) return pathDir;
+    // Small chance to ignore the food and just wander toward open space —
+    // reads as curiosity/hesitation rather than a robot beelining every time.
+    const wander = Math.random() < 0.12;
+
+    if (!wander) {
+      const pathDirs = bfsNextStepOptions(head, food, blocked);
+      for (const pathDir of pathDirs) {
+        const nx = head.x + pathDir.x, ny = head.y + pathDir.y;
+        if (safe(nx, ny, bodyNoTail)) {
+          const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
+          const space = floodFillCount(nx, ny, afterBlocked);
+          if (space >= minSpace) return pathDir;
+        }
       }
     }
 
-    // 2) No safe path to food right now — pick the safe move that keeps the
-    //    most open space available, so the snake survives and stays flexible.
-    let best = null, bestSpace = -1;
+    // pick from the safe moves with the most open space, but don't always
+    // take the single best — sample among near-best ones for variety
+    const scored = [];
     for (const o of options) {
       const nx = head.x + o.x, ny = head.y + o.y;
       if (!safe(nx, ny, bodyNoTail)) continue;
       const afterBlocked = new Set(blocked); afterBlocked.add(`${nx},${ny}`);
       const space = floodFillCount(nx, ny, afterBlocked);
-      if (space > bestSpace) { bestSpace = space; best = o; }
+      scored.push({ o, space });
     }
-    if (best) return best;
+    if (scored.length) {
+      scored.sort((a, b) => b.space - a.space);
+      const top = scored.filter(s => s.space >= scored[0].space * 0.7);
+      return top[Math.floor(Math.random() * top.length)].o;
+    }
 
-    // 3) Nothing strictly safe (tail-following as last resort).
     for (const o of options) {
       const nx = head.x + o.x, ny = head.y + o.y;
       if (safe(nx, ny, bodyNoTail)) return o;
@@ -1081,6 +1100,8 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
   }
 
   function step() {
+    prevSnake = snake.map(s => ({ ...s }));
+
     dir = chooseDirection();
     const head = snake[0];
     const next = { x: head.x + dir.x, y: head.y + dir.y };
@@ -1089,15 +1110,34 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
     if (dead) { resetGame(); return; }
 
     snake.unshift(next);
+    prevSnake.unshift(prevSnake[0] || next); // new head eases in from old head pos
+
+    let grew = false;
     if (next.x === food.x && next.y === food.y) {
       growUntil = snake.length + 6;
       placeFood();
     }
-    if (snake.length > growUntil) snake.pop();
+    if (snake.length > growUntil) {
+      snake.pop();
+      prevSnake.pop();
+    } else {
+      grew = true;
+    }
+    if (grew && prevSnake.length < snake.length) {
+      prevSnake.push(prevSnake[prevSnake.length - 1]);
+    }
     if (snake.length > cols * rows * 0.35) resetGame();
+
+    // organic speed variation — small random jitter around a base pace,
+    // occasionally a quicker dart, so it doesn't tick like a metronome
+    const base = 95;
+    stepMs = base + (Math.random() - 0.5) * 30 + (Math.random() < 0.08 ? -25 : 0);
+    stepMs = Math.max(55, stepMs);
   }
 
-  function draw() {
+  function ease(t) { return 1 - Math.pow(1 - t, 3); } // ease-out, feels more alive than linear
+
+  function draw(t) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.strokeStyle = "rgba(77,255,106,0.05)";
@@ -1109,17 +1149,23 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
       ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(cols * CELL, y * CELL); ctx.stroke();
     }
 
+    // gentle pulse on the food so it doesn't sit dead-still
+    const pulse = 1 + Math.sin(performance.now() / 220) * 0.12;
     ctx.save();
     ctx.shadowColor = "#ff2fd0";
     ctx.shadowBlur = 16;
     ctx.fillStyle = "#ff2fd0";
-    const fpad = 5;
     ctx.beginPath();
-    ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL / 2 - fpad, 0, Math.PI * 2);
+    ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, (CELL / 2 - 5) * pulse, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
+    const et = ease(t);
     snake.forEach((s, i) => {
+      const p = prevSnake[i] || s;
+      const ix = p.x + (s.x - p.x) * et;
+      const iy = p.y + (s.y - p.y) * et;
+
       const isHead = i === 0;
       ctx.save();
       ctx.shadowColor = isHead ? "#9dffb0" : "#4dff6a";
@@ -1127,7 +1173,7 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
       ctx.fillStyle = isHead ? "#9dffb0" : "#4dff6a";
       const pad = 2;
       const r = 4;
-      const x = s.x * CELL + pad, y = s.y * CELL + pad, w = CELL - pad * 2, h = CELL - pad * 2;
+      const x = ix * CELL + pad, y = iy * CELL + pad, w = CELL - pad * 2, h = CELL - pad * 2;
       ctx.beginPath();
       ctx.moveTo(x + r, y);
       ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -1141,11 +1187,13 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
   }
 
   function loop(ts) {
+    if (!lastStep) lastStep = ts;
     if (ts - lastStep > stepMs) {
       step();
       lastStep = ts;
     }
-    draw();
+    const t = Math.min((ts - lastStep) / stepMs, 1);
+    draw(reduceMotion ? 1 : t);
     requestAnimationFrame(loop);
   }
 
@@ -1153,12 +1201,11 @@ countEl.textContent = `${String(VIDEOS.length).padStart(2, "0")} CUTS`;
   resize();
 
   if (reduceMotion) {
-    draw();
+    draw(1);
   } else {
     requestAnimationFrame(loop);
   }
 })();
-
 /* ============================================================
    Occasional glitch tic on the word "frame"
    ============================================================ */
