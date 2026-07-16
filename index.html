@@ -915,7 +915,7 @@ function buildCard(video, index) {
     info.querySelector("[data-ratio]").textContent = ratioLabel(ratio);
 
     const iframe = document.createElement("iframe");
-    iframe.src = `https://www.youtube.com/embed/${id}`;
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&iv_load_policy=3&disablekb=1`;
     iframe.title = video.title || "video";
     iframe.loading = "lazy";
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
