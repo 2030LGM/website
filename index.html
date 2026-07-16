@@ -481,6 +481,46 @@
 
   @keyframes shimmer{ 0%{ background-position:120% 0; } 100%{ background-position:-20% 0; } }
 
+  /* click-to-play thumbnail overlay (no YouTube iframe/branding until clicked) */
+  .card-thumb{
+    position:absolute; inset:0;
+    background-size:cover; background-position:center;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    border:0; padding:0;
+  }
+
+  .card-thumb::after{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(5,5,9,0.05) 0%, rgba(5,5,9,0.55) 100%);
+  }
+
+  .card-thumb .play-btn{
+    position:relative; z-index:1;
+    width:58px; height:58px; border-radius:50%;
+    background:rgba(5,5,9,0.55);
+    border:1.5px solid rgba(238,240,245,0.8);
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+    transition:transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-thumb .play-btn svg{
+    width:20px; height:20px;
+    fill:var(--text);
+    margin-left:3px;
+  }
+
+  .card-thumb:hover .play-btn{
+    transform:scale(1.08);
+    border-color:var(--neon-green);
+    background:rgba(5,5,9,0.7);
+    box-shadow:0 0 22px rgba(77,255,106,0.4);
+  }
+
+  .card-thumb:hover .play-btn svg{ fill:var(--neon-green); }
+
   .card-info{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
     padding:14px 16px;
@@ -914,13 +954,43 @@ function buildCard(video, index) {
     media.classList.remove("loading");
     info.querySelector("[data-ratio]").textContent = ratioLabel(ratio);
 
-    const iframe = document.createElement("iframe");
-    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&iv_load_policy=3&disablekb=1`;
-    iframe.title = video.title || "video";
-    iframe.loading = "lazy";
-    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-    iframe.allowFullscreen = true;
-    media.appendChild(iframe);
+    // Click-to-load thumbnail: no YouTube iframe (no branding, no cookies,
+    // no extra requests) exists on the page until the visitor actually
+    // clicks play. We just show YouTube's static thumbnail image + a
+    // custom play button drawn entirely with our own SVG/CSS.
+    const thumb = document.createElement("button");
+    thumb.type = "button";
+    thumb.className = "card-thumb";
+    thumb.setAttribute("aria-label", `Play ${video.title || "video"}`);
+    // maxresdefault is highest quality but not always available; fall back
+    // to hqdefault if it 404s.
+    const hi = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+    const fallback = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    const probe = new Image();
+    probe.onload = () => {
+      // maxresdefault is a fixed 120x90 grey placeholder when missing
+      thumb.style.backgroundImage = (probe.naturalWidth > 120) ? `url(${hi})` : `url(${fallback})`;
+    };
+    probe.onerror = () => { thumb.style.backgroundImage = `url(${fallback})`; };
+    probe.src = hi;
+
+    thumb.innerHTML = `
+      <span class="play-btn">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </span>
+    `;
+
+    thumb.addEventListener("click", () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&iv_load_policy=3&disablekb=1`;
+      iframe.title = video.title || "video";
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+      iframe.allowFullscreen = true;
+      media.innerHTML = "";
+      media.appendChild(iframe);
+    }, { once: true });
+
+    media.appendChild(thumb);
   });
 }
 
